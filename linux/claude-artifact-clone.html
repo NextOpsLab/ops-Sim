@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Dashboard Clone</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f0f23;
+            color: #cccccc;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 40px 0;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 300;
+            color: #ffffff;
+            margin-bottom: 10px;
+            letter-spacing: -0.02em;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            color: #999999;
+            font-weight: 400;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+
+        .card {
+            background: #1a1a2e;
+            border: 1px solid #2d2d44;
+            border-radius: 12px;
+            padding: 24px;
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card:hover {
+            border-color: #4a4a6a;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .card-icon {
+            width: 24px;
+            height: 24px;
+            margin-right: 12px;
+            opacity: 0.8;
+        }
+
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: 500;
+            color: #ffffff;
+        }
+
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: 600;
+            color: #ffffff;
+            margin: 16px 0;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .metric-change {
+            font-size: 0.9rem;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+
+        .metric-change.positive {
+            background: rgba(34, 197, 94, 0.1);
+            color: #22c55e;
+        }
+
+        .metric-change.negative {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+        }
+
+        .chart-container {
+            height: 200px;
+            margin: 20px 0;
+            position: relative;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .chart-bar {
+            position: absolute;
+            bottom: 0;
+            background: linear-gradient(180deg, #3b82f6, #1d4ed8);
+            border-radius: 2px 2px 0 0;
+            transition: all 0.3s ease;
+            opacity: 0.8;
+        }
+
+        .chart-bar:hover {
+            opacity: 1;
+            transform: scaleY(1.05);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 16px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin: 8px 8px 8px 0;
+        }
+
+        .status-online {
+            background: rgba(34, 197, 94, 0.1);
+            color: #22c55e;
+        }
+
+        .status-warning {
+            background: rgba(245, 158, 11, 0.1);
+            color: #f59e0b;
+        }
+
+        .status-offline {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+            margin-right: 8px;
+        }
+
+        .activity-list {
+            list-style: none;
+        }
+
+        .activity-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+
+        .activity-time {
+            font-size: 0.85rem;
+            color: #666;
+            margin-left: auto;
+        }
+
+        .button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .button:hover {
+            background: #2563eb;
+            transform: translateY(-1px);
+        }
+
+        .button-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #cccccc;
+        }
+
+        .button-secondary:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+        }
+
+        .data-table th,
+        .data-table td {
+            text-align: left;
+            padding: 12px 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .data-table th {
+            font-weight: 500;
+            color: #999;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .data-table td {
+            color: #cccccc;
+        }
+
+        .sparkline {
+            height: 40px;
+            width: 100%;
+            margin: 12px 0;
+        }
+
+        .sparkline-path {
+            fill: none;
+            stroke: #3b82f6;
+            stroke-width: 2;
+            opacity: 0.8;
+        }
+
+        .sparkline-area {
+            fill: url(#sparklineGradient);
+            opacity: 0.3;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .card {
+            animation: fadeInUp 0.6s ease forwards;
+        }
+
+        .card:nth-child(1) { animation-delay: 0.1s; }
+        .card:nth-child(2) { animation-delay: 0.2s; }
+        .card:nth-child(3) { animation-delay: 0.3s; }
+        .card:nth-child(4) { animation-delay: 0.4s; }
+        .card:nth-child(5) { animation-delay: 0.5s; }
+        .card:nth-child(6) { animation-delay: 0.6s; }
+
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .metric-value {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Analytics Dashboard</h1>
+            <p>Real-time insights and performance metrics</p>
+        </div>
+
+        <div class="dashboard-grid">
+            <!-- Revenue Card -->
+            <div class="card">
+                <div class="card-header">
+                    <svg class="card-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    </svg>
+                    <h3 class="card-title">Total Revenue</h3>
+                </div>
+                <div class="metric-value" id="revenue">$0</div>
+                <div class="metric-change positive" id="revenueChange">+12.5% from last month</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 75%"></div>
+                </div>
+            </div>
+
+            <!-- Users Card -->
+            <div class="card">
+                <div class="card-header">
+                    <svg class="card-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M16 7c0-2.21-1.79-4-4-4S8 4.79 8 7s1.79 4 4 4 4-1.79 4-4zm-4 6c-2.67 0-8 1.34-8 4v3h16v-3c0-2.66-5.33-4-8-4z"/>
+                    </svg>
+                    <h3 class="card-title">Active Users</h3>
+                </div>
+                <div class="metric-value" id="users">0</div>
+                <div class="metric-change positive">+8.2% from last week</div>
+                <svg class="sparkline" viewBox="0 0 200 40">
+                    <defs>
+                        <linearGradient id="sparklineGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:0.3" />
+                            <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:0" />
+                        </linearGradient>
+                    </defs>
+                    <path class="sparkline-area" d="M0,35 L20,30 L40,25 L60,28 L80,20 L100,15 L120,18 L140,12 L160,8 L180,5 L200,10 L200,40 L0,40 Z"/>
+                    <path class="sparkline-path" d="M0,35 L20,30 L40,25 L60,28 L80,20 L100,15 L120,18 L140,12 L160,8 L180,5 L200,10"/>
+                </svg>
+            </div>
+
+            <!-- Performance Chart -->
+            <div class="card">
+                <div class="card-header">
+                    <svg class="card-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
+                    </svg>
+                    <h3 class="card-title">Performance</h3>
+                </div>
+                <div class="chart-container" id="chartContainer">
+                    <!-- Chart bars will be generated by JavaScript -->
+                </div>
+                <button class="button" onclick="refreshChart()">Refresh Data</button>
+            </div>
+
+            <!-- System Status -->
+            <div class="card">
+                <div class="card-header">
+                    <svg class="card-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    </svg>
+                    <h3 class="card-title">System Status</h3>
+                </div>
+                <div class="status-indicator status-online">
+                    <div class="status-dot"></div>
+                    API Services
+                </div>
+                <div class="status-indicator status-online">
+                    <div class="status-dot"></div>
+                    Database
+                </div>
+                <div class="status-indicator status-warning">
+                    <div class="status-dot"></div>
+                    CDN
+                </div>
+                <div class="status-indicator status-offline">
+                    <div class="status-dot"></div>
+                    Backup System
+                </div>
+                <button class="button button-secondary" onclick="checkStatus()">Check All Systems</button>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="card">
+                <div class="card-header">
+                    <svg class="card-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/>
+                    </svg>
+                    <h3 class="card-title">Recent Activity</h3>
+                </div>
+                <ul class="activity-list" id="activityList">
+                    <li class="activity-item">
+                        <span>New user registration</span>
+                        <span class="activity-time">2 min ago</span>
+                    </li>
+                    <li class="activity-item">
+                        <span>Payment processed</span>
+                        <span class="activity-time">5 min ago</span>
+                    </li>
+                    <li class="activity-item">
+                        <span>System backup completed</span>
+                        <span class="activity-time">1 hour ago</span>
+                    </li>
+                    <li class="activity-item">
+                        <span>Database optimization</span>
+                        <span class="activity-time">3 hours ago</span>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Data Table -->
+            <div class="card">
+                <div class="card-header">
+                    <svg class="card-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
+                    </svg>
+                    <h3 class="card-title">Top Pages</h3>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Page</th>
+                            <th>Views</th>
+                            <th>Bounce Rate</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>/dashboard</td>
+                            <td>12,543</td>
+                            <td>23.4%</td>
+                        </tr>
+                        <tr>
+                            <td>/products</td>
+                            <td>8,921</td>
+                            <td>31.2%</td>
+                        </tr>
+                        <tr>
+                            <td>/about</td>
+                            <td>5,432</td>
+                            <td>45.1%</td>
+                        </tr>
+                        <tr>
+                            <td>/contact</td>
+                            <td>2,876</td>
+                            <td>52.3%</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Animated counter function
+        function animateCounter(element, target, duration = 2000) {
+            const start = 0;
+            const increment = target / (duration / 16);
+            let current = start;
+            
+            const timer = setInterval(() => {
+                current += increment;
+                if (current >= target) {
+                    current = target;
+                    clearInterval(timer);
+                }
+                
+                if (element.id === 'revenue') {
+                    element.textContent = '$' + Math.floor(current).toLocaleString();
+                } else {
+                    element.textContent = Math.floor(current).toLocaleString();
+                }
+            }, 16);
+        }
+
+        // Generate chart bars
+        function generateChart() {
+            const container = document.getElementById('chartContainer');
+            container.innerHTML = '';
+            
+            const data = [65, 45, 78, 52, 89, 67, 43, 91, 56, 73, 82, 48];
+            const maxValue = Math.max(...data);
+            
+            data.forEach((value, index) => {
+                const bar = document.createElement('div');
+                bar.className = 'chart-bar';
+                bar.style.left = `${(index * 8) + 2}%`;
+                bar.style.width = '6%';
+                bar.style.height = `${(value / maxValue) * 100}%`;
+                bar.style.animationDelay = `${index * 0.1}s`;
+                container.appendChild(bar);
+            });
+        }
+
+        // Refresh chart with new data
+        function refreshChart() {
+            generateChart();
+        }
+
+        // Check system status
+        function checkStatus() {
+            const button = event.target;
+            button.textContent = 'Checking...';
+            button.disabled = true;
+            
+            setTimeout(() => {
+                button.textContent = 'Check All Systems';
+                button.disabled = false;
+                
+                // Simulate status updates
+                const statuses = document.querySelectorAll('.status-indicator');
+                statuses.forEach(status => {
+                    if (Math.random() > 0.7) {
+                        status.className = 'status-indicator status-online';
+                        status.innerHTML = '<div class="status-dot"></div>' + status.textContent.trim();
+                    }
+                });
+            }, 2000);
+        }
+
+        // Update activity list
+        function updateActivity() {
+            const activities = [
+                'New user registration',
+                'Payment processed',
+                'System backup completed',
+                'Database optimization',
+                'Security scan completed',
+                'Cache cleared',
+                'Email sent',
+                'File uploaded'
+            ];
+            
+            const activityList = document.getElementById('activityList');
+            const newActivity = document.createElement('li');
+            newActivity.className = 'activity-item';
+            newActivity.innerHTML = `
+                <span>${activities[Math.floor(Math.random() * activities.length)]}</span>
+                <span class="activity-time">Just now</span>
+            `;
+            
+            activityList.insertBefore(newActivity, activityList.firstChild);
+            
+            // Remove last item if more than 4
+            if (activityList.children.length > 4) {
+                activityList.removeChild(activityList.lastChild);
+            }
+        }
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            // Animate counters
+            animateCounter(document.getElementById('revenue'), 247500);
+            animateCounter(document.getElementById('users'), 18432);
+            
+            // Generate initial chart
+            generateChart();
+            
+            // Update activity every 10 seconds
+            setInterval(updateActivity, 10000);
+            
+            // Update metrics every 30 seconds
+            setInterval(() => {
+                const revenue = document.getElementById('revenue');
+                const users = document.getElementById('users');
+                
+                animateCounter(revenue, Math.floor(Math.random() * 50000) + 200000);
+                animateCounter(users, Math.floor(Math.random() * 5000) + 15000);
+            }, 30000);
+        });
+
+        // Add some interactive hover effects
+        document.querySelectorAll('.chart-bar').forEach(bar => {
+            bar.addEventListener('mouseenter', function() {
+                this.style.opacity = '1';
+                this.style.transform = 'scaleY(1.1)';
+            });
+            
+            bar.addEventListener('mouseleave', function() {
+                this.style.opacity = '0.8';
+                this.style.transform = 'scaleY(1)';
+            });
+        });
+    </script>
+</body>
+</html>

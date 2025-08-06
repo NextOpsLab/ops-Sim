@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Working Git Simulator</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Courier New', monospace; background: #1e1e1e; color: #fff; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { text-align: center; color: #4ecdc4; margin-bottom: 30px; }
+        .repo-info { text-align: center; margin-bottom: 20px; }
+        .repo-info span { background: rgba(255,255,255,0.1); padding: 8px 15px; margin: 0 10px; border-radius: 15px; }
+        .main-grid { display: grid; grid-template-columns: 300px 1fr 1fr; gap: 20px; }
+        .git-graph { background: #2c2c2c; border-radius: 10px; padding: 15px; height: 600px; overflow-y: auto; }
+        .left-column { display: flex; flex-direction: column; gap: 20px; }
+        .terminal { background: #2c2c2c; border-radius: 10px; padding: 20px; height: 400px; overflow-y: auto; }
+        .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+        .control-panel { background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; }
+        .control-panel h3 { color: #4ecdc4; margin-bottom: 10px; font-size: 14px; }
+        button { width: 100%; margin-bottom: 8px; padding: 8px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-family: 'Courier New', monospace; font-size: 12px; }
+        button:hover { background: #2980b9; }
+        .prompt { color: #4ecdc4; margin-top: 10px; }
+        .output { color: #ecf0f1; margin-left: 20px; white-space: pre-line; }
+        .success { color: #27ae60; }
+        .error { color: #e74c3c; }
+        .warning { color: #f39c12; }
+        .file-areas { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .file-area { background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; min-height: 80px; }
+        .file-area h4 { font-size: 12px; margin-bottom: 8px; text-align: center; padding: 4px; border-radius: 4px; }
+        .file-item { background: rgba(255,255,255,0.2); padding: 4px 8px; margin-bottom: 4px; border-radius: 3px; font-size: 11px; cursor: pointer; }
+        .file-item:hover { background: rgba(255,255,255,0.3); }
+        .branch-item { background: rgba(155,89,182,0.3); padding: 4px 8px; margin-bottom: 4px; border-radius: 3px; font-size: 11px; cursor: pointer; }
+        .branch-item:hover { background: rgba(155,89,182,0.5); }
+        .branch-item.current { background: rgba(39,174,96,0.5); font-weight: bold; }
+        .stash-item { background: rgba(52,73,94,0.3); padding: 4px 8px; margin-bottom: 4px; border-radius: 3px; font-size: 11px; cursor: pointer; }
+        .stash-item:hover { background: rgba(52,73,94,0.5); }
+        .git-graph { 
+            background: linear-gradient(135deg, #2c2c2c 0%, #1e1e1e 100%); 
+            border-radius: 12px; 
+            padding: 20px; 
+            height: 600px; 
+            overflow-y: auto; 
+            border: 1px solid #404040;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        .git-graph h3 { 
+            color: #4ecdc4; 
+            margin-bottom: 20px; 
+            text-align: center; 
+            font-size: 16px; 
+            font-weight: 600;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+        }
+        .commit-row { 
+            display: flex; 
+            align-items: center; 
+            height: 28px; 
+            margin-bottom: 1px; 
+            font-size: 11px; 
+            position: relative; 
+            transition: background-color 0.2s ease;
+            border-radius: 4px;
+            padding: 2px 4px;
+        }
+        .commit-row:hover { 
+            background: rgba(255,255,255,0.05); 
+            transform: translateX(2px);
+        }
+        .graph-column { 
+            width: 20px; 
+            height: 28px; 
+            position: relative; 
+            flex-shrink: 0; 
+        }
+        .commit-dot { 
+            width: 10px; 
+            height: 10px; 
+            border-radius: 50%; 
+            position: absolute; 
+            left: 5px; 
+            top: 9px; 
+            z-index: 3; 
+            border: 2px solid #2c2c2c;
+            box-shadow: 0 0 0 1px rgba(255,255,255,0.1), 0 2px 4px rgba(0,0,0,0.3);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .commit-dot:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 0 2px rgba(255,255,255,0.2), 0 4px 8px rgba(0,0,0,0.4);
+        }
+        .branch-line { 
+            position: absolute; 
+            background: #555; 
+            opacity: 0.8;
+        }
+        .branch-line.vertical { 
+            top: 0; 
+            height: 28px; 
+            width: 3px; 
+            left: 8.5px; 
+            border-radius: 1.5px;
+        }
+        .branch-line.horizontal { 
+            top: 13px; 
+            height: 3px; 
+            width: 12px; 
+            left: 8px; 
+            border-radius: 1.5px;
+        }
+        .branch-line.merge-in { 
+            top: 13px; 
+            height: 3px; 
+            width: 16px; 
+            left: 4px; 
+            border-radius: 1.5px;
+        }
+        .commit-info { 
+            margin-left: 12px; 
+            flex: 1; 
+            display: flex; 
+            align-items: center; 
+            gap: 8px;
+        }
+        .commit-hash { 
+            color: #f39c12; 
+            font-weight: bold; 
+            font-family: 'Courier New', monospace;
+            background: rgba(243,156,18,0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid rgba(243,156,18,0.2);
+        }
+        .commit-message { 
+            color: #ecf0f1; 
+            font-weight: 500;
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .commit-author { 
+            color: #95a5a6; 
+            font-size: 10px; 
+            background: rgba(149,165,166,0.1);
+            padding: 2px 6px;
+            border-radius: 10px;
+            border: 1px solid rgba(149,165,166,0.2);
+        }
+        .commit-date { 
+            color: #7f8c8d; 
+            font-size: 10px; 
+            font-family: 'Courier New', monospace;
+        }
+        .branch-label { 
+            background: linear-gradient(135deg, rgba(155,89,182,0.4) 0%, rgba(155,89,182,0.2) 100%); 
+            color: #bb7bd6; 
+            padding: 3px 8px; 
+            border-radius: 12px; 
+            font-size: 9px; 
+            font-weight: 600;
+            border: 1px solid rgba(155,89,182,0.3);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            transition: all 0.2s ease;
+        }
+        .branch-label:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+        .branch-label.remote { 
+            background: linear-gradient(135deg, rgba(149,165,166,0.4) 0%, rgba(149,165,166,0.2) 100%); 
+            color: #a5b5b6; 
+            font-style: italic; 
+            border: 1px solid rgba(149,165,166,0.3);
+        }
+        .branch-main .commit-dot, .branch-main .branch-line { 
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%); 
+        }
+        .branch-develop .commit-dot, .branch-develop .branch-line { 
+            background: linear-gradient(135deg, #3498db 0%, #5dade2 100%); 
+        }
+        .branch-feature .commit-dot, .branch-feature .branch-line { 
+            background: linear-gradient(135deg, #e74c3c 0%, #ec7063 100%); 
+        }
+        .branch-hotfix .commit-dot, .branch-hotfix .branch-line { 
+            background: linear-gradient(135deg, #f39c12 0%, #f7dc6f 100%); 
+        }
+        .branch-originmain .commit-dot { 
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%); 
+            border: 3px solid #2c2c2c; 
+            box-shadow: 0 0 0 1px #27ae60, 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .branch-origindevelop .commit-dot { 
+            background: linear-gradient(135deg, #3498db 0%, #5dade2 100%); 
+            border: 3px solid #2c2c2c; 
+            box-shadow: 0 0 0 1px #3498db, 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .branch-originfeature .commit-dot { 
+            background: linear-gradient(135deg, #e74c3c 0%, #ec7063 100%); 
+            border: 3px solid #2c2c2c; 
+            box-shadow: 0 0 0 1px #e74c3c, 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .git-graph::-webkit-scrollbar {
+            width: 8px;
+        }
+        .git-graph::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+        }
+        .git-graph::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.3);
+            border-radius: 4px;
+        }
+        .git-graph::-webkit-scrollbar-thumb:hover {
+            background: rgba(255,255,255,0.5);
+        }
+        #current-branch { color: #27ae60; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Working Git Simulator</h1>
+        
+        <div class="repo-info">
+            <span>Repository: <strong>my-project</strong></span>
+            <span>Branch: <strong id="current-branch">main</strong></span>
+            <span>Status: <strong id="repo-status">Clean</strong></span>
+        </div>
+
+        <div class="main-grid">
+            <div class="git-graph">
+                <h3>📊 Git Graph</h3>
+                <div id="git-graph-content"></div>
+            </div>
+
+            <div class="left-column">
+                <div class="terminal" id="terminal">
+                    <div class="prompt">$ git status</div>
+                    <div class="output">On branch main<br>nothing to commit, working tree clean</div>
+                </div>
+
+                <div class="file-areas">
+                    <div class="file-area">
+                        <h4 style="background: #e74c3c;">Untracked</h4>
+                        <div id="untracked-files"></div>
+                    </div>
+                    <div class="file-area">
+                        <h4 style="background: #f39c12;">Modified</h4>
+                        <div id="modified-files"></div>
+                    </div>
+                    <div class="file-area">
+                        <h4 style="background: #3498db;">Staged</h4>
+                        <div id="staged-files"></div>
+                    </div>
+                    <div class="file-area">
+                        <h4 style="background: #27ae60;">Committed</h4>
+                        <div id="committed-files"></div>
+                    </div>
+                </div>
+
+                <div class="file-areas">
+                    <div class="file-area">
+                        <h4 style="background: #9b59b6;">🌿 Branches</h4>
+                        <div id="branches-display"></div>
+                    </div>
+                    <div class="file-area">
+                        <h4 style="background: #34495e;">📦 Stash</h4>
+                        <div id="stash-display"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="controls">
+                <div class="control-panel">
+                    <h3>📁 Repository</h3>
+                    <button onclick="gitInit()">git init</button>
+                    <button onclick="gitClone()">git clone</button>
+                    <button onclick="gitStatus()">git status</button>
+                </div>
+
+                <div class="control-panel">
+                    <h3>📝 Changes</h3>
+                    <button onclick="gitAdd()">git add .</button>
+                    <button onclick="gitAddFile()">git add &lt;file&gt;</button>
+                    <button onclick="gitCommit()">git commit</button>
+                    <button onclick="gitCommitMessage()">git commit -m</button>
+                </div>
+
+                <div class="control-panel">
+                    <h3>📚 History</h3>
+                    <button onclick="gitLog()">git log</button>
+                    <button onclick="gitLogOneline()">git log --oneline</button>
+                    <button onclick="gitShow()">git show</button>
+                    <button onclick="gitDiff()">git diff</button>
+                </div>
+
+                <div class="control-panel">
+                    <h3>↩️ Undo</h3>
+                    <button onclick="gitReset()">git reset</button>
+                    <button onclick="gitResetHard()">git reset --hard</button>
+                    <button onclick="gitCheckoutFile()">git checkout --</button>
+                    <button onclick="gitRevert()">git revert</button>
+                </div>
+
+                <div class="control-panel">
+                    <h3>🌿 Branches</h3>
+                    <button onclick="gitBranch()">git branch</button>
+                    <button onclick="gitBranchCreate()">git branch &lt;name&gt;</button>
+                    <button onclick="gitCheckout()">git checkout</button>
+                    <button onclick="gitMerge()">git merge</button>
+                </div>
+
+                <div class="control-panel">
+                    <h3>🌐 Remote</h3>
+                    <button onclick="gitRemote()">git remote</button>
+                    <button onclick="gitPush()">git push</button>
+                    <button onclick="gitPull()">git pull</button>
+                    <button onclick="gitFetch()">git fetch</button>
+                </div>
+
+                <div class="control-panel">
+                    <h3>🏷️ Tags</h3>
+                    <button onclick="gitTag()">git tag</button>
+                    <button onclick="gitTagCreate()">git tag &lt;name&gt;</button>
+                    <button onclick="gitPushTags()">git push --tags</button>
+                </div>
+
+                <div class="control-panel">
+                    <h3>📦 Stash</h3>
+                    <button onclick="gitStash()">git stash</button>
+                    <button onclick="gitStashPop()">git stash pop</button>
+                    <button onclick="gitStashList()">git stash list</button>
+                </div>
+
+                <div class="control-panel">
+                    <h3>🔧 Files</h3>
+                    <button onclick="createFile()">Create File</button>
+                    <button onclick="modifyFile()">Modify File</button>
+                    <button onclick="deleteFile()">Delete File</button>
+                    <button onclick="clearTerminal()">Clear Terminal</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Simple Git State
+        let git = {
+            currentBranch: 'main',
+            branches: {
+                main: {
+                    commits: [
+                        {
+                            hash: 'a1b2c3d',
+                            message: 'Initial commit',
+                            files: ['README.md', '.gitignore'],
+                            author: 'John Doe <john@example.com>',
+                            date: new Date(Date.now() - 86400000 * 5).toISOString()
+                        },
+                        {
+                            hash: 'e4f5g6h',
+                            message: 'Add project structure',
+                            files: ['README.md', '.gitignore', 'src/'],
+                            author: 'John Doe <john@example.com>',
+                            date: new Date(Date.now() - 86400000 * 4).toISOString()
+                        },
+                        {
+                            hash: 'q7r8s9t',
+                            message: 'Merge branch develop into main',
+                            files: ['README.md', '.gitignore', 'src/', 'dev/'],
+                            author: 'John Doe <john@example.com>',
+                            date: new Date(Date.now() - 86400000 * 1).toISOString()
+                        }
+                    ]
+                },
+                develop: {
+                    commits: [
+                        {
+                            hash: 'a1b2c3d',
+                            message: 'Initial commit',
+                            files: ['README.md', '.gitignore'],
+                            author: 'John Doe <john@example.com>',
+                            date: new Date(Date.now() - 86400000 * 5).toISOString()
+                        },
+                        {
+                            hash: 'i7j8k9l',
+                            message: 'Add development features',
+                            files: ['README.md', '.gitignore', 'src/', 'dev/'],
+                            author: 'Jane Smith <jane@example.com>',
+                            date: new Date(Date.now() - 86400000 * 3).toISOString()
+                        },
+                        {
+                            hash: 'u1v2w3x',
+                            message: 'Fix development bugs',
+                            files: ['README.md', '.gitignore', 'src/', 'dev/'],
+                            author: 'Jane Smith <jane@example.com>',
+                            date: new Date(Date.now() - 86400000 * 2).toISOString()
+                        }
+                    ]
+                },
+                feature: {
+                    commits: [
+                        {
+                            hash: 'i7j8k9l',
+                            message: 'Add development features',
+                            files: ['README.md', '.gitignore', 'src/', 'dev/'],
+                            author: 'Jane Smith <jane@example.com>',
+                            date: new Date(Date.now() - 86400000 * 3).toISOString()
+                        },
+                        {
+                            hash: 'y4z5a6b',
+                            message: 'Implement new feature',
+                            files: ['README.md', '.gitignore', 'src/', 'dev/', 'feature.js'],
+                            author: 'Bob Wilson <bob@example.com>',
+                            date: new Date(Date.now() - 86400000 * 0.5).toISOString()
+                        }
+                    ]
+                }
+            },
+            remoteBranches: {
+                'origin/main': {
+                    commits: [
+                        {
+                            hash: 'a1b2c3d',
+                            message: 'Initial commit',
+                            files: ['README.md', '.gitignore'],
+                            author: 'John Doe <john@example.com>',
+                            date: new Date(Date.now() - 86400000 * 5).toISOString()
+                        },
+                        {
+                            hash: 'e4f5g6h',
+                            message: 'Add project structure',
+                            files: ['README.md', '.gitignore', 'src/'],
+                            author: 'John Doe <john@example.com>',
+                            date: new Date(Date.now() - 86400000 * 4).toISOString()
+                        }
+                    ]
+                },
+                'origin/develop': {
+                    commits: [
+                        {
+                            hash: 'a1b2c3d',
+                            message: 'Initial commit',
+                            files: ['README.md', '.gitignore'],
+                            author: 'John Doe <john@example.com>',
+                            date: new Date(Date.now() - 86400000 * 5).toISOString()
+                        },
+                        {
+                            hash: 'i7j8k9l',
+                            message: 'Add development features',
+                            files: ['README.md', '.gitignore', 'src/', 'dev/'],
+                            author: 'Jane Smith <jane@example.com>',
+                            date: new Date(Date.now() - 86400000 * 3).toISOString()
+                        }
+                    ]
+                }
+            },
+            workingDir: ['README.md', '.gitignore', 'index.html', 'style.css'],
+            untracked: ['index.html', 'style.css'],
+            modified: [],
+            staged: [],
+            remotes: { origin: 'https://github.com/user/my-project.git' },
+            tags: {},
+            stash: []
+        };
+
+        // Utility functions
+        function addOutput(command, text, type = 'output') {
+            const terminal = document.getElementById('terminal');
+            terminal.innerHTML += `<div class="prompt">$ ${command}</div><div class="${type}">${text}</div>`;
+            terminal.scrollTop = terminal.scrollHeight;
+            updateFileDisplay();
+        }
+
+        function clearTerminal() {
+            document.getElementById('terminal').innerHTML = '<div class="prompt">$ git status</div><div class="output">On branch main<br>nothing to commit, working tree clean</div>';
+        }
+
+        function updateGitGraph() {
+            const graphContent = document.getElementById('git-graph-content');
+            let allCommits = [];
+            
+            // Collect all commits from local branches
+            Object.keys(git.branches).forEach(branchName => {
+                git.branches[branchName].commits.forEach((commit, index) => {
+                    allCommits.push({
+                        ...commit,
+                        branch: branchName,
+                        isRemote: false,
+                        timestamp: new Date(commit.date).getTime(),
+                        branchIndex: getBranchIndex(branchName),
+                        isHead: index === git.branches[branchName].commits.length - 1
+                    });
+                });
+            });
+            
+            // Collect all commits from remote branches
+            Object.keys(git.remoteBranches).forEach(remoteBranchName => {
+                git.remoteBranches[remoteBranchName].commits.forEach((commit, index) => {
+                    allCommits.push({
+                        ...commit,
+                        branch: remoteBranchName,
+                        isRemote: true,
+                        timestamp: new Date(commit.date).getTime(),
+                        branchIndex: getBranchIndex(remoteBranchName),
+                        isHead: index === git.remoteBranches[remoteBranchName].commits.length - 1
+                    });
+                });
+            });
+            
+            // Sort commits by timestamp (newest first)
+            allCommits.sort((a, b) => b.timestamp - a.timestamp);
+            
+            // Remove duplicates but keep track of which branches they belong to
+            const processedCommits = [];
+            const commitMap = new Map();
+            
+            allCommits.forEach(commit => {
+                if (commitMap.has(commit.hash)) {
+                    // Add branch info to existing commit
+                    const existing = commitMap.get(commit.hash);
+                    if (!existing.branches.includes(commit.branch)) {
+                        existing.branches.push(commit.branch);
+                        existing.branchIndices.push(commit.branchIndex);
+                    }
+                } else {
+                    // New commit
+                    const processedCommit = {
+                        ...commit,
+                        branches: [commit.branch],
+                        branchIndices: [commit.branchIndex]
+                    };
+                    commitMap.set(commit.hash, processedCommit);
+                    processedCommits.push(processedCommit);
+                }
+            });
+            
+            // Generate HTML for enhanced VS Code-style git graph
+            let graphHTML = '';
+            const maxColumns = Math.max(...processedCommits.flatMap(c => c.branchIndices)) + 1;
+            
+            processedCommits.forEach((commit, rowIndex) => {
+                const shortHash = commit.hash.substring(0, 7);
+                const shortMessage = commit.message.length > 40 ? commit.message.substring(0, 40) + '...' : commit.message;
+                const author = commit.author.split('<')[0].trim();
+                const shortAuthor = author.length > 12 ? author.substring(0, 12) + '...' : author;
+                const date = new Date(commit.date).toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                
+                graphHTML += '<div class="commit-row">';
+                
+                // Create graph columns with enhanced visuals
+                for (let col = 0; col < Math.max(maxColumns, 4); col++) {
+                    const hasCommitInColumn = commit.branchIndices.includes(col);
+                    const branchName = hasCommitInColumn ? commit.branches[commit.branchIndices.indexOf(col)] : '';
+                    const branchClass = branchName ? `branch-${branchName.replace(/[^a-zA-Z0-9]/g, '')}` : '';
+                    
+                    graphHTML += `<div class="graph-column ${branchClass}">`;
+                    
+                    if (hasCommitInColumn) {
+                        // Show commit dot with enhanced styling
+                        const dotTitle = `${commit.hash} - ${commit.message} (${author})`;
+                        graphHTML += `<div class="commit-dot" title="${dotTitle}"></div>`;
+                    }
+                    
+                    // Show vertical line for active branches
+                    const needsVerticalLine = shouldShowVerticalLine(col, rowIndex, processedCommits);
+                    if (needsVerticalLine) {
+                        const lineClass = getLineClass(col, processedCommits);
+                        graphHTML += `<div class="branch-line vertical ${lineClass}"></div>`;
+                    }
+                    
+                    graphHTML += '</div>';
+                }
+                
+                // Enhanced commit information
+                graphHTML += '<div class="commit-info">';
+                graphHTML += `<span class="commit-hash" title="Copy hash">${shortHash}</span>`;
+                graphHTML += `<span class="commit-message" title="${commit.message}">${shortMessage}</span>`;
+                graphHTML += `<span class="commit-author" title="${commit.author}">${shortAuthor}</span>`;
+                graphHTML += `<span class="commit-date" title="${new Date(commit.date).toLocaleString()}">${date}</span>`;
+                
+                // Enhanced branch labels with better spacing
+                commit.branches.forEach((branch, index) => {
+                    const isRemote = branch.includes('origin/');
+                    const labelClass = isRemote ? 'branch-label remote' : 'branch-label';
+                    const displayBranch = branch.length > 15 ? branch.substring(0, 15) + '...' : branch;
+                    graphHTML += `<span class="${labelClass}" title="${branch}">${displayBranch}</span>`;
+                });
+                
+                graphHTML += '</div>';
+                graphHTML += '</div>';
+            });
+            
+            if (graphHTML === '') {
+                graphHTML = `
+                    <div style="color: #7f8c8d; font-style: italic; text-align: center; margin-top: 50px; padding: 20px;">
+                        <div style="font-size: 24px; margin-bottom: 10px;">📊</div>
+                        <div>No commits yet</div>
+                        <div style="font-size: 10px; margin-top: 5px;">Make your first commit to see the git graph</div>
+                    </div>
+                `;
+            }
+            
+            graphContent.innerHTML = graphHTML;
+        }
+        
+        function getBranchIndex(branchName) {
+            const branchOrder = ['main', 'origin/main', 'develop', 'origin/develop', 'feature', 'origin/feature', 'hotfix'];
+            const cleanName = branchName.replace('origin/', '');
+            const index = branchOrder.findIndex(b => b.includes(cleanName));
+            return index !== -1 ? Math.floor(index / 2) : Math.floor(branchOrder.length / 2);
+        }
+        
+        function shouldShowVerticalLine(column, currentRow, commits) {
+            // Check if there are more commits in this column below current row
+            for (let i = currentRow + 1; i < commits.length; i++) {
+                if (commits[i].branchIndices.includes(column)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        
+        function getLineClass(column, commits) {
+            // Determine the branch class for the line based on the most recent commit in this column
+            for (let commit of commits) {
+                if (commit.branchIndices.includes(column)) {
+                    const branchName = commit.branches[commit.branchIndices.indexOf(column)];
+                    return `branch-${branchName.replace(/[^a-zA-Z0-9]/g, '')}`;
+                }
+            }
+            return '';
+        }
+
+        function updateFileDisplay() {
+            // Update git graph
+            updateGitGraph();
+            
+            // Update file areas
+            document.getElementById('untracked-files').innerHTML = git.untracked.map(f => `<div class="file-item" onclick="stageFile('${f}')">${f}</div>`).join('');
+            document.getElementById('modified-files').innerHTML = git.modified.map(f => `<div class="file-item" onclick="stageFile('${f}')">${f}</div>`).join('');
+            document.getElementById('staged-files').innerHTML = git.staged.map(f => `<div class="file-item" onclick="unstageFile('${f}')">${f}</div>`).join('');
+            
+            const lastCommit = git.branches[git.currentBranch].commits.slice(-1)[0];
+            document.getElementById('committed-files').innerHTML = lastCommit ? lastCommit.files.map(f => `<div class="file-item">${f}</div>`).join('') : '';
+            
+            // Update branches display
+            document.getElementById('branches-display').innerHTML = Object.keys(git.branches).map(branch => {
+                const isCurrent = branch === git.currentBranch;
+                const className = isCurrent ? 'branch-item current' : 'branch-item';
+                const prefix = isCurrent ? '* ' : '';
+                return `<div class="${className}" onclick="switchBranch('${branch}')">${prefix}${branch}</div>`;
+            }).join('');
+            
+            // Update stash display
+            document.getElementById('stash-display').innerHTML = git.stash.map((entry, index) => {
+                const shortMessage = entry.message.length > 25 ? entry.message.substring(0, 25) + '...' : entry.message;
+                return `<div class="stash-item" onclick="applyStash(${index})">stash@{${index}}: ${shortMessage}</div>`;
+            }).join('') || '<div style="color: #7f8c8d; font-style: italic; font-size: 10px;">No stash entries</div>';
+            
+            document.getElementById('current-branch').textContent = git.currentBranch;
+        }
+
+        function stageFile(filename) {
+            if (git.untracked.includes(filename)) {
+                git.untracked = git.untracked.filter(f => f !== filename);
+                git.staged.push(filename);
+            } else if (git.modified.includes(filename)) {
+                git.modified = git.modified.filter(f => f !== filename);
+                git.staged.push(filename);
+            }
+            updateFileDisplay();
+        }
+
+        function unstageFile(filename) {
+            git.staged = git.staged.filter(f => f !== filename);
+            git.modified.push(filename);
+            updateFileDisplay();
+        }
+
+        function switchBranch(branchName) {
+            if (branchName === git.currentBranch) return;
+            
+            if (git.modified.length > 0 || git.staged.length > 0) {
+                addOutput(`git checkout ${branchName}`, 'error: Your local changes would be overwritten by checkout.\nPlease commit your changes first.', 'error');
+                return;
+            }
+            
+            git.currentBranch = branchName;
+            addOutput(`git checkout ${branchName}`, `Switched to branch '${branchName}'`, 'success');
+        }
+
+        function applyStash(index) {
+            if (index >= git.stash.length) return;
+            
+            const stashEntry = git.stash.splice(index, 1)[0];
+            git.modified = [...git.modified, ...stashEntry.modified];
+            git.staged = [...git.staged, ...stashEntry.staged];
+            addOutput(`git stash apply stash@{${index}}`, `Applied stash@{${index}}`, 'success');
+        }
+
+        // Git Commands
+        function gitInit() {
+            addOutput('git init', 'Initialized empty Git repository in /path/to/repo/.git/', 'success');
+        }
+
+        function gitClone() {
+            const url = prompt('Enter repository URL:', 'https://github.com/user/example.git');
+            if (url) {
+                addOutput(`git clone ${url}`, `Cloning into 'example'...\nremote: Enumerating objects: 10, done.\nReceiving objects: 100% (10/10), done.`, 'success');
+            }
+        }
+
+        function gitStatus() {
+            let output = `On branch ${git.currentBranch}\n`;
+            
+            if (git.staged.length > 0) {
+                output += '\nChanges to be committed:\n';
+                git.staged.forEach(f => output += `\t<span class="success">new file:   ${f}</span>\n`);
+            }
+            
+            if (git.modified.length > 0) {
+                output += '\nChanges not staged for commit:\n';
+                git.modified.forEach(f => output += `\t<span class="warning">modified:   ${f}</span>\n`);
+            }
+            
+            if (git.untracked.length > 0) {
+                output += '\nUntracked files:\n';
+                git.untracked.forEach(f => output += `\t<span class="error">${f}</span>\n`);
+            }
+            
+            if (git.staged.length === 0 && git.modified.length === 0 && git.untracked.length === 0) {
+                output += 'nothing to commit, working tree clean';
+            }
+            
+            addOutput('git status', output);
+        }
+
+        function gitAdd() {
+            if (git.modified.length === 0 && git.untracked.length === 0) {
+                addOutput('git add .', 'No changes to add', 'output');
+                return;
+            }
+            
+            git.staged = [...git.staged, ...git.modified, ...git.untracked];
+            git.modified = [];
+            git.untracked = [];
+            addOutput('git add .', 'Changes staged for commit', 'success');
+        }
+
+        function gitAddFile() {
+            const filename = prompt('Enter filename to add:');
+            if (filename && (git.modified.includes(filename) || git.untracked.includes(filename))) {
+                git.staged.push(filename);
+                git.modified = git.modified.filter(f => f !== filename);
+                git.untracked = git.untracked.filter(f => f !== filename);
+                addOutput(`git add ${filename}`, `Added ${filename} to staging area`, 'success');
+            } else if (filename) {
+                addOutput(`git add ${filename}`, `pathspec '${filename}' did not match any files`, 'error');
+            }
+        }
+
+        function gitCommit() {
+            if (git.staged.length === 0) {
+                addOutput('git commit', 'nothing to commit, working tree clean', 'output');
+                return;
+            }
+            
+            const message = prompt('Enter commit message:') || 'Update files';
+            const hash = Math.random().toString(36).substr(2, 7);
+            
+            git.branches[git.currentBranch].commits.push({
+                hash: hash,
+                message: message,
+                files: [...git.staged],
+                author: 'User <user@example.com>',
+                date: new Date().toISOString()
+            });
+            
+            git.staged = [];
+            addOutput(`git commit -m "${message}"`, `[${git.currentBranch} ${hash}] ${message}\n ${git.branches[git.currentBranch].commits.slice(-1)[0].files.length} file(s) changed`, 'success');
+        }
+
+        function gitCommitMessage() {
+            const message = prompt('Enter commit message:');
+            if (message) {
+                if (git.staged.length === 0) {
+                    addOutput(`git commit -m "${message}"`, 'nothing to commit, working tree clean', 'output');
+                    return;
+                }
+                
+                const hash = Math.random().toString(36).substr(2, 7);
+                git.branches[git.currentBranch].commits.push({
+                    hash: hash,
+                    message: message,
+                    files: [...git.staged],
+                    author: 'User <user@example.com>',
+                    date: new Date().toISOString()
+                });
+                
+                git.staged = [];
+                addOutput(`git commit -m "${message}"`, `[${git.currentBranch} ${hash}] ${message}\n ${git.branches[git.currentBranch].commits.slice(-1)[0].files.length} file(s) changed`, 'success');
+            }
+        }
+
+        function gitLog() {
+            let output = '';
+            git.branches[git.currentBranch].commits.slice().reverse().forEach(commit => {
+                output += `<span style="color: #f39c12">commit ${commit.hash}</span>\n`;
+                output += `Author: ${commit.author}\n`;
+                output += `Date: ${new Date(commit.date).toDateString()}\n\n`;
+                output += `    ${commit.message}\n\n`;
+            });
+            addOutput('git log', output);
+        }
+
+        function gitLogOneline() {
+            let output = '';
+            git.branches[git.currentBranch].commits.slice().reverse().forEach(commit => {
+                output += `<span style="color: #f39c12">${commit.hash}</span> ${commit.message}\n`;
+            });
+            addOutput('git log --oneline', output);
+        }
+
+        function gitShow() {
+            const lastCommit = git.branches[git.currentBranch].commits.slice(-1)[0];
+            if (!lastCommit) {
+                addOutput('git show', 'No commits yet', 'output');
+                return;
+            }
+            
+            let output = `<span style="color: #f39c12">commit ${lastCommit.hash}</span>\n`;
+            output += `Author: ${lastCommit.author}\n`;
+            output += `Date: ${new Date(lastCommit.date).toDateString()}\n\n`;
+            output += `    ${lastCommit.message}\n\n`;
+            addOutput('git show', output);
+        }
+
+        function gitDiff() {
+            if (git.modified.length === 0) {
+                addOutput('git diff', 'No changes in working directory', 'output');
+                return;
+            }
+            
+            let output = '';
+            git.modified.forEach(file => {
+                output += `diff --git a/${file} b/${file}\n`;
+                output += `--- a/${file}\n+++ b/${file}\n`;
+                output += `@@ -1,3 +1,4 @@\n`;
+                output += ` existing line\n<span class="error">-removed line</span>\n<span class="success">+added line</span>\n\n`;
+            });
+            addOutput('git diff', output);
+        }
+
+        function gitReset() {
+            if (git.staged.length === 0) {
+                addOutput('git reset', 'No staged changes to reset', 'output');
+                return;
+            }
+            
+            git.modified = [...git.modified, ...git.staged];
+            git.staged = [];
+            addOutput('git reset', 'Unstaged changes after reset', 'output');
+        }
+
+        function gitResetHard() {
+            git.staged = [];
+            git.modified = [];
+            git.untracked = [];
+            addOutput('git reset --hard', 'HEAD is now at last commit', 'warning');
+        }
+
+        function gitCheckoutFile() {
+            const filename = prompt('Enter filename to checkout:');
+            if (filename && git.modified.includes(filename)) {
+                git.modified = git.modified.filter(f => f !== filename);
+                addOutput(`git checkout -- ${filename}`, `Reverted changes to ${filename}`, 'success');
+            } else if (filename) {
+                addOutput(`git checkout -- ${filename}`, `No changes to ${filename}`, 'output');
+            }
+        }
+
+        function gitRevert() {
+            const commits = git.branches[git.currentBranch].commits;
+            if (commits.length <= 1) {
+                addOutput('git revert', 'Nothing to revert', 'output');
+                return;
+            }
+            
+            const lastCommit = commits.slice(-1)[0];
+            const hash = Math.random().toString(36).substr(2, 7);
+            
+            commits.push({
+                hash: hash,
+                message: `Revert "${lastCommit.message}"`,
+                files: [],
+                author: 'User <user@example.com>',
+                date: new Date().toISOString()
+            });
+            
+            addOutput('git revert HEAD', `[${git.currentBranch} ${hash}] Revert "${lastCommit.message}"`, 'success');
+        }
+
+        function gitBranch() {
+            let output = '';
+            Object.keys(git.branches).forEach(branch => {
+                const prefix = branch === git.currentBranch ? '* ' : '  ';
+                const color = branch === git.currentBranch ? 'color: #27ae60' : 'color: #ecf0f1';
+                output += `<span style="${color}">${prefix}${branch}</span>\n`;
+            });
+            addOutput('git branch', output);
+        }
+
+        function gitBranchCreate() {
+            const branchName = prompt('Enter new branch name:');
+            if (branchName && !git.branches[branchName]) {
+                git.branches[branchName] = {
+                    commits: [...git.branches[git.currentBranch].commits]
+                };
+                addOutput(`git branch ${branchName}`, `Created branch '${branchName}'`, 'success');
+            } else if (branchName) {
+                addOutput(`git branch ${branchName}`, `fatal: A branch named '${branchName}' already exists.`, 'error');
+            }
+        }
+
+        function gitCheckout() {
+            const branchName = prompt('Enter branch name to checkout:');
+            if (branchName && git.branches[branchName]) {
+                if (git.modified.length > 0 || git.staged.length > 0) {
+                    addOutput(`git checkout ${branchName}`, 'error: Your local changes would be overwritten by checkout.\nPlease commit your changes first.', 'error');
+                    return;
+                }
+                
+                git.currentBranch = branchName;
+                addOutput(`git checkout ${branchName}`, `Switched to branch '${branchName}'`, 'success');
+            } else if (branchName) {
+                addOutput(`git checkout ${branchName}`, `error: pathspec '${branchName}' did not match any file(s) known to git`, 'error');
+            }
+        }
+
+        function gitMerge() {
+            const branchName = prompt('Enter branch name to merge:');
+            if (branchName && git.branches[branchName] && branchName !== git.currentBranch) {
+                const hash = Math.random().toString(36).substr(2, 7);
+                git.branches[git.currentBranch].commits.push({
+                    hash: hash,
+                    message: `Merge branch '${branchName}'`,
+                    files: [],
+                    author: 'User <user@example.com>',
+                    date: new Date().toISOString()
+                });
+                addOutput(`git merge ${branchName}`, `Merge made by the 'recursive' strategy.`, 'success');
+            } else if (branchName === git.currentBranch) {
+                addOutput(`git merge ${branchName}`, 'Already up to date.', 'output');
+            } else if (branchName) {
+                addOutput(`git merge ${branchName}`, `merge: ${branchName} - not something we can merge`, 'error');
+            }
+        }
+
+        function gitRemote() {
+            let output = '';
+            Object.keys(git.remotes).forEach(remote => {
+                output += `${remote}\n`;
+            });
+            addOutput('git remote', output || 'No remotes configured');
+        }
+
+        function gitPush() {
+            const remoteBranchName = `origin/${git.currentBranch}`;
+            
+            // Update remote branch with local commits
+            if (!git.remoteBranches[remoteBranchName]) {
+                git.remoteBranches[remoteBranchName] = { commits: [] };
+            }
+            
+            git.remoteBranches[remoteBranchName].commits = [...git.branches[git.currentBranch].commits];
+            
+            addOutput('git push', `Enumerating objects: 5, done.\nTo ${git.remotes.origin}\n   ${git.branches[git.currentBranch].commits.slice(-1)[0].hash}  ${git.currentBranch} -> ${git.currentBranch}`, 'success');
+        }
+
+        function gitPull() {
+            const remoteBranchName = `origin/${git.currentBranch}`;
+            
+            if (git.remoteBranches[remoteBranchName]) {
+                const remoteCommits = git.remoteBranches[remoteBranchName].commits;
+                const localCommits = git.branches[git.currentBranch].commits;
+                
+                // Simple merge - add remote commits that aren't in local
+                const localHashes = new Set(localCommits.map(c => c.hash));
+                const newCommits = remoteCommits.filter(c => !localHashes.has(c.hash));
+                
+                if (newCommits.length > 0) {
+                    git.branches[git.currentBranch].commits.push(...newCommits);
+                    addOutput('git pull', `From ${git.remotes.origin}\n * branch            ${git.currentBranch}     -> FETCH_HEAD\nUpdating ${localCommits.slice(-1)[0].hash}..${remoteCommits.slice(-1)[0].hash}\nFast-forward`, 'success');
+                } else {
+                    addOutput('git pull', `From ${git.remotes.origin}\n * branch            ${git.currentBranch}       -> FETCH_HEAD\nAlready up to date.`, 'output');
+                }
+            } else {
+                addOutput('git pull', `From ${git.remotes.origin}\n * branch            ${git.currentBranch}       -> FETCH_HEAD\nAlready up to date.`, 'output');
+            }
+        }
+
+        function gitFetch() {
+            // Simulate fetching remote changes
+            const remoteBranchName = `origin/${git.currentBranch}`;
+            addOutput('git fetch', `From ${git.remotes.origin}\n * branch            ${git.currentBranch}       -> FETCH_HEAD`, 'success');
+        }
+
+        function gitTag() {
+            let output = '';
+            Object.keys(git.tags).forEach(tag => {
+                output += `${tag}\n`;
+            });
+            addOutput('git tag', output || 'No tags found');
+        }
+
+        function gitTagCreate() {
+            const tagName = prompt('Enter tag name:');
+            if (tagName && !git.tags[tagName]) {
+                git.tags[tagName] = git.branches[git.currentBranch].commits.slice(-1)[0].hash;
+                addOutput(`git tag ${tagName}`, `Created tag '${tagName}'`, 'success');
+            } else if (tagName) {
+                addOutput(`git tag ${tagName}`, `fatal: tag '${tagName}' already exists`, 'error');
+            }
+        }
+
+        function gitPushTags() {
+            const tagCount = Object.keys(git.tags).length;
+            if (tagCount > 0) {
+                addOutput('git push --tags', `To ${git.remotes.origin}\n${Object.keys(git.tags).map(tag => ` * [new tag]         ${tag} -> ${tag}`).join('\n')}`, 'success');
+            } else {
+                addOutput('git push --tags', 'Everything up-to-date', 'output');
+            }
+        }
+
+        function gitStash() {
+            if (git.modified.length === 0 && git.staged.length === 0) {
+                addOutput('git stash', 'No local changes to save', 'output');
+                return;
+            }
+            
+            git.stash.push({
+                modified: [...git.modified],
+                staged: [...git.staged],
+                message: `WIP on ${git.currentBranch}: ${git.branches[git.currentBranch].commits.slice(-1)[0].hash} ${git.branches[git.currentBranch].commits.slice(-1)[0].message}`
+            });
+            
+            git.modified = [];
+            git.staged = [];
+            addOutput('git stash', `Saved working directory and index state ${git.stash.slice(-1)[0].message}`, 'success');
+        }
+
+        function gitStashPop() {
+            if (git.stash.length === 0) {
+                addOutput('git stash pop', 'No stash entries found.', 'error');
+                return;
+            }
+            
+            const stashEntry = git.stash.pop();
+            git.modified = [...stashEntry.modified];
+            git.staged = [...stashEntry.staged];
+            addOutput('git stash pop', `Dropped refs/stash@{0} (${stashEntry.message.substring(0, 50)}...)`, 'success');
+        }
+
+        function gitStashList() {
+            if (git.stash.length === 0) {
+                addOutput('git stash list', 'No stash entries found', 'output');
+                return;
+            }
+            
+            let output = '';
+            git.stash.forEach((entry, index) => {
+                output += `stash@{${index}}: ${entry.message}\n`;
+            });
+            addOutput('git stash list', output);
+        }
+
+        // File management
+        function createFile() {
+            const filename = prompt('Enter filename to create:');
+            if (filename && !git.workingDir.includes(filename)) {
+                git.workingDir.push(filename);
+                git.untracked.push(filename);
+                addOutput(`touch ${filename}`, `Created ${filename}`, 'success');
+            }
+        }
+
+        function modifyFile() {
+            const filename = prompt('Enter filename to modify:', git.workingDir[0]);
+            if (filename && git.workingDir.includes(filename) && !git.modified.includes(filename) && !git.staged.includes(filename)) {
+                git.modified.push(filename);
+                git.untracked = git.untracked.filter(f => f !== filename);
+                addOutput(`nano ${filename}`, `Modified ${filename}`, 'success');
+            }
+        }
+
+        function deleteFile() {
+            const filename = prompt('Enter filename to delete:', git.workingDir[0]);
+            if (filename && git.workingDir.includes(filename)) {
+                git.workingDir = git.workingDir.filter(f => f !== filename);
+                git.untracked = git.untracked.filter(f => f !== filename);
+                git.modified = git.modified.filter(f => f !== filename);
+                git.staged = git.staged.filter(f => f !== filename);
+                addOutput(`rm ${filename}`, `Deleted ${filename}`, 'warning');
+            }
+        }
+
+        // Initialize
+        updateFileDisplay();
+    </script>
+</body>
+</html>

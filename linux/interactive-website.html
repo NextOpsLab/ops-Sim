@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Experience Hub</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+            animation: fadeInDown 1s ease-out;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .interactive-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            animation: fadeInUp 1s ease-out;
+        }
+
+        .card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 25px 50px rgba(0,0,0,0.2);
+        }
+
+        .card h3 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+
+        .color-picker-card {
+            text-align: center;
+        }
+
+        .color-display {
+            width: 100%;
+            height: 100px;
+            border-radius: 10px;
+            margin: 20px 0;
+            transition: all 0.3s ease;
+            border: 3px solid #ddd;
+        }
+
+        .color-controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .color-btn {
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .color-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .counter-card {
+            text-align: center;
+        }
+
+        .counter-display {
+            font-size: 4rem;
+            font-weight: bold;
+            color: #667eea;
+            margin: 20px 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .counter-controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(45deg, #f093fb, #f5576c);
+            color: white;
+        }
+
+        .btn-success {
+            background: linear-gradient(45deg, #4facfe, #00f2fe);
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+        }
+
+        .text-animator-card textarea {
+            width: 100%;
+            height: 100px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            padding: 15px;
+            font-size: 1rem;
+            resize: vertical;
+            margin-bottom: 15px;
+        }
+
+        .animated-text {
+            min-height: 60px;
+            padding: 20px;
+            background: linear-gradient(45deg, #ffecd2, #fcb69f);
+            border-radius: 10px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 15px 0;
+        }
+
+        .quiz-card {
+            text-align: center;
+        }
+
+        .question {
+            font-size: 1.3rem;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .quiz-options {
+            display: grid;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .quiz-option {
+            padding: 15px;
+            background: #f8f9fa;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-option:hover {
+            background: #e9ecef;
+            border-color: #667eea;
+        }
+
+        .quiz-option.correct {
+            background: #d4edda;
+            border-color: #28a745;
+        }
+
+        .quiz-option.incorrect {
+            background: #f8d7da;
+            border-color: #dc3545;
+        }
+
+        .score {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-top: 15px;
+        }
+
+        .floating-shapes {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .shape {
+            position: absolute;
+            opacity: 0.1;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .shape:nth-child(1) {
+            top: 20%;
+            left: 10%;
+            animation-delay: 0s;
+        }
+
+        .shape:nth-child(2) {
+            top: 60%;
+            right: 10%;
+            animation-delay: 2s;
+        }
+
+        .shape:nth-child(3) {
+            bottom: 20%;
+            left: 20%;
+            animation-delay: 4s;
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0px) rotate(0deg);
+            }
+            50% {
+                transform: translateY(-20px) rotate(180deg);
+            }
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateY(0);
+            }
+            40% {
+                transform: translateY(-10px);
+            }
+            60% {
+                transform: translateY(-5px);
+            }
+        }
+
+        .bounce {
+            animation: bounce 0.6s ease;
+        }
+
+        @keyframes rainbow {
+            0% { color: #ff0000; }
+            16% { color: #ff8000; }
+            33% { color: #ffff00; }
+            50% { color: #00ff00; }
+            66% { color: #0080ff; }
+            83% { color: #8000ff; }
+            100% { color: #ff0000; }
+        }
+
+        .rainbow-text {
+            animation: rainbow 2s linear infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .pulse {
+            animation: pulse 1s ease-in-out infinite;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .counter-display {
+                font-size: 3rem;
+            }
+            
+            .interactive-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="floating-shapes">
+        <div class="shape" style="width: 100px; height: 100px; background: rgba(255,255,255,0.1); border-radius: 50%;"></div>
+        <div class="shape" style="width: 80px; height: 80px; background: rgba(255,255,255,0.1); transform: rotate(45deg);"></div>
+        <div class="shape" style="width: 120px; height: 120px; background: rgba(255,255,255,0.1); border-radius: 20px;"></div>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <h1>Interactive Experience Hub</h1>
+            <p>Explore, interact, and have fun with these engaging components!</p>
+        </div>
+
+        <div class="interactive-grid">
+            <!-- Color Picker Card -->
+            <div class="card color-picker-card">
+                <h3>🎨 Color Explorer</h3>
+                <div class="color-display" id="colorDisplay"></div>
+                <div class="color-controls">
+                    <button class="color-btn" style="background: #ff6b6b;" onclick="changeColor('#ff6b6b')"></button>
+                    <button class="color-btn" style="background: #4ecdc4;" onclick="changeColor('#4ecdc4')"></button>
+                    <button class="color-btn" style="background: #45b7d1;" onclick="changeColor('#45b7d1')"></button>
+                    <button class="color-btn" style="background: #96ceb4;" onclick="changeColor('#96ceb4')"></button>
+                    <button class="color-btn" style="background: #ffeaa7;" onclick="changeColor('#ffeaa7')"></button>
+                    <button class="color-btn" style="background: #dda0dd;" onclick="changeColor('#dda0dd')"></button>
+                </div>
+                <button class="btn btn-primary" onclick="randomColor()" style="margin-top: 15px;">Random Color</button>
+            </div>
+
+            <!-- Counter Card -->
+            <div class="card counter-card">
+                <h3>🔢 Interactive Counter</h3>
+                <div class="counter-display" id="counterDisplay">0</div>
+                <div class="counter-controls">
+                    <button class="btn btn-secondary" onclick="decrementCounter()">- Decrease</button>
+                    <button class="btn btn-success" onclick="incrementCounter()">+ Increase</button>
+                </div>
+                <button class="btn btn-primary" onclick="resetCounter()" style="margin-top: 15px;">Reset</button>
+            </div>
+
+            <!-- Text Animator Card -->
+            <div class="card text-animator-card">
+                <h3>✨ Text Animator</h3>
+                <textarea id="textInput" placeholder="Type your message here...">Hello, World!</textarea>
+                <div class="animated-text" id="animatedText">Hello, World!</div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="btn btn-primary" onclick="animateText('bounce')">Bounce</button>
+                    <button class="btn btn-secondary" onclick="animateText('rainbow')">Rainbow</button>
+                    <button class="btn btn-success" onclick="animateText('pulse')">Pulse</button>
+                </div>
+            </div>
+
+            <!-- Quiz Card -->
+            <div class="card quiz-card">
+                <h3>🧠 Quick Quiz</h3>
+                <div class="question" id="quizQuestion">What is the capital of France?</div>
+                <div class="quiz-options" id="quizOptions">
+                    <div class="quiz-option" onclick="selectAnswer(this, false)">London</div>
+                    <div class="quiz-option" onclick="selectAnswer(this, true)">Paris</div>
+                    <div class="quiz-option" onclick="selectAnswer(this, false)">Berlin</div>
+                    <div class="quiz-option" onclick="selectAnswer(this, false)">Madrid</div>
+                </div>
+                <div class="score" id="quizScore">Score: 0/0</div>
+                <button class="btn btn-primary" onclick="nextQuestion()" style="margin-top: 15px;">Next Question</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Color Picker Functionality
+        let currentColor = '#667eea';
+        
+        function changeColor(color) {
+            currentColor = color;
+            document.getElementById('colorDisplay').style.backgroundColor = color;
+            document.getElementById('colorDisplay').classList.add('bounce');
+            setTimeout(() => {
+                document.getElementById('colorDisplay').classList.remove('bounce');
+            }, 600);
+        }
+        
+        function randomColor() {
+            const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7', '#dda0dd', '#ff9ff3', '#54a0ff', '#5f27cd', '#00d2d3'];
+            const randomColor = colors[Math.floor(Math.random() * colors.length)];
+            changeColor(randomColor);
+        }
+        
+        // Initialize color display
+        changeColor(currentColor);
+
+        // Counter Functionality
+        let counter = 0;
+        
+        function updateCounterDisplay() {
+            document.getElementById('counterDisplay').textContent = counter;
+            document.getElementById('counterDisplay').classList.add('bounce');
+            setTimeout(() => {
+                document.getElementById('counterDisplay').classList.remove('bounce');
+            }, 600);
+        }
+        
+        function incrementCounter() {
+            counter++;
+            updateCounterDisplay();
+        }
+        
+        function decrementCounter() {
+            counter--;
+            updateCounterDisplay();
+        }
+        
+        function resetCounter() {
+            counter = 0;
+            updateCounterDisplay();
+        }
+
+        // Text Animator Functionality
+        function animateText(animation) {
+            const textInput = document.getElementById('textInput');
+            const animatedText = document.getElementById('animatedText');
+            
+            animatedText.textContent = textInput.value || 'Hello, World!';
+            animatedText.className = 'animated-text';
+            
+            setTimeout(() => {
+                animatedText.classList.add(animation === 'rainbow' ? 'rainbow-text' : animation);
+            }, 100);
+            
+            if (animation !== 'rainbow') {
+                setTimeout(() => {
+                    animatedText.classList.remove(animation);
+                }, 2000);
+            }
+        }
+        
+        // Update animated text when input changes
+        document.getElementById('textInput').addEventListener('input', function() {
+            document.getElementById('animatedText').textContent = this.value || 'Hello, World!';
+        });
+
+        // Quiz Functionality
+        const quizQuestions = [
+            {
+                question: "What is the capital of France?",
+                options: ["London", "Paris", "Berlin", "Madrid"],
+                correct: 1
+            },
+            {
+                question: "Which planet is known as the Red Planet?",
+                options: ["Venus", "Mars", "Jupiter", "Saturn"],
+                correct: 1
+            },
+            {
+                question: "What is 2 + 2?",
+                options: ["3", "4", "5", "6"],
+                correct: 1
+            },
+            {
+                question: "Who painted the Mona Lisa?",
+                options: ["Van Gogh", "Picasso", "Leonardo da Vinci", "Michelangelo"],
+                correct: 2
+            },
+            {
+                question: "What is the largest ocean on Earth?",
+                options: ["Atlantic", "Indian", "Arctic", "Pacific"],
+                correct: 3
+            }
+        ];
+        
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let totalAnswered = 0;
+        
+        function selectAnswer(element, isCorrect) {
+            const options = document.querySelectorAll('.quiz-option');
+            options.forEach(option => {
+                option.style.pointerEvents = 'none';
+                if (option === element) {
+                    option.classList.add(isCorrect ? 'correct' : 'incorrect');
+                } else if (option.textContent === quizQuestions[currentQuestionIndex].options[quizQuestions[currentQuestionIndex].correct]) {
+                    option.classList.add('correct');
+                }
+            });
+            
+            if (isCorrect) {
+                score++;
+            }
+            totalAnswered++;
+            updateScore();
+        }
+        
+        function updateScore() {
+            document.getElementById('quizScore').textContent = `Score: ${score}/${totalAnswered}`;
+        }
+        
+        function nextQuestion() {
+            currentQuestionIndex = (currentQuestionIndex + 1) % quizQuestions.length;
+            loadQuestion();
+        }
+        
+        function loadQuestion() {
+            const question = quizQuestions[currentQuestionIndex];
+            document.getElementById('quizQuestion').textContent = question.question;
+            
+            const optionsContainer = document.getElementById('quizOptions');
+            optionsContainer.innerHTML = '';
+            
+            question.options.forEach((option, index) => {
+                const optionElement = document.createElement('div');
+                optionElement.className = 'quiz-option';
+                optionElement.textContent = option;
+                optionElement.onclick = () => selectAnswer(optionElement, index === question.correct);
+                optionsContainer.appendChild(optionElement);
+            });
+        }
+        
+        // Initialize quiz
+        loadQuestion();
+        updateScore();
+
+        // Add some interactive effects
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add hover effects to cards
+            const cards = document.querySelectorAll('.card');
+            cards.forEach(card => {
+                card.addEventListener('mouseenter', function() {
+                    this.style.transform = 'translateY(-10px) scale(1.02)';
+                });
+                
+                card.addEventListener('mouseleave', function() {
+                    this.style.transform = 'translateY(0) scale(1)';
+                });
+            });
+        });
+    </script>
+</body>
+</html>
