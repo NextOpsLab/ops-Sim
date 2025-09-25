@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Networking & DNS Deep Dive</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 50%, #9b59b6 100%);
+            color: white;
+            overflow: hidden;
+        }
+
+        .presentation-container {
+            height: 100vh;
+            position: relative;
+        }
+
+        .slide {
+            display: none;
+            height: 100vh;
+            padding: 60px 50px 80px 50px;
+            position: absolute;
+            width: 100%;
+            animation: slideIn 0.6s ease-in-out;
+            overflow-y: auto;
+        }
+
+        .slide.active {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        h1 {
+            font-size: 2.8em;
+            margin-bottom: 20px;
+            text-align: center;
+            background: linear-gradient(45deg, #e74c3c, #f39c12, #2ecc71);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        h2 {
+            font-size: 2.0em;
+            margin-bottom: 15px;
+            color: #f39c12;
+            border-bottom: 3px solid #e74c3c;
+            padding-bottom: 8px;
+        }
+
+        h3 {
+            font-size: 1.6em;
+            margin: 15px 0 10px 0;
+            color: #2ecc71;
+        }
+
+        .content {
+            max-width: 1200px;
+            margin: 0 auto;
+            line-height: 1.6;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .network-diagram {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            margin: 20px 0;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 30px;
+            border-radius: 15px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .network-row {
+            display: flex;
+            align-items: center;
+            gap: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .device {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            border-radius: 10px;
+            padding: 15px 20px;
+            text-align: center;
+            font-weight: bold;
+            min-width: 80px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            transition: transform 0.3s ease;
+        }
+
+        .device:hover {
+            transform: scale(1.1);
+        }
+
+        .router {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            border-radius: 15px;
+            padding: 20px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .isp {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+            border-radius: 10px;
+            padding: 20px;
+            font-weight: bold;
+            text-align: center;
+            font-size: 1.1em;
+        }
+
+        .connection-line {
+            width: 60px;
+            height: 3px;
+            background: linear-gradient(90deg, #2ecc71, #27ae60);
+            position: relative;
+        }
+
+        .vertical-line {
+            width: 3px;
+            height: 40px;
+            background: linear-gradient(180deg, #2ecc71, #27ae60);
+        }
+
+        .dns-flow {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .dns-step {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            border-left: 5px solid #2ecc71;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .dns-step:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateX(10px);
+        }
+
+        .step-number {
+            background: #e74c3c;
+            color: white;
+            border-radius: 50%;
+            width: 35px;
+            height: 35px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            font-weight: bold;
+            position: absolute;
+            left: -17px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .dns-step-content {
+            margin-left: 30px;
+        }
+
+        .url-breakdown {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 25px 0;
+            font-size: 1.8em;
+            font-weight: bold;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .url-part {
+            padding: 12px 20px;
+            border-radius: 8px;
+            text-align: center;
+            transition: transform 0.3s ease;
+            margin: 5px;
+        }
+
+        .url-part:hover {
+            transform: scale(1.05);
+        }
+
+        .protocol { background: #e74c3c; }
+        .subdomain { background: #3498db; }
+        .domain { background: #2ecc71; }
+        .tld { background: #f39c12; }
+        .root { background: #9b59b6; }
+
+        .code-output {
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 10px;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            margin: 15px 0;
+            border-left: 4px solid #2ecc71;
+            white-space: pre-wrap;
+        }
+
+        .navigation {
+            position: fixed;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 12px;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 8px 16px;
+            border-radius: 25px;
+            backdrop-filter: blur(10px);
+        }
+
+        .nav-btn {
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.15);
+            border: none;
+            border-radius: 20px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+
+        .nav-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: scale(1.05);
+        }
+
+        .slide-counter {
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 1.0em;
+            font-weight: bold;
+            z-index: 1000;
+        }
+
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            align-items: start;
+        }
+
+        .highlight-box {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 25px;
+            margin: 15px 0;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        ul, ol {
+            margin: 10px 0;
+            padding-left: 25px;
+        }
+
+        li {
+            margin: 6px 0;
+            font-size: 1.05em;
+        }
+
+        .title-slide {
+            text-align: center;
+            justify-content: center !important;
+        }
+
+        .subtitle {
+            font-size: 1.4em;
+            color: #2ecc71;
+            margin-top: 15px;
+        }
+
+        .local-network {
+            background: rgba(52, 152, 219, 0.2);
+            border: 2px solid #3498db;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 10px;
+            text-align: center;
+        }
+
+        .internet-cloud {
+            background: linear-gradient(135deg, #8e44ad, #3498db);
+            border-radius: 50px;
+            padding: 30px;
+            text-align: center;
+            font-size: 1.2em;
+            font-weight: bold;
+            margin: 20px;
+        }
+
+        .facebook-network {
+            background: rgba(59, 89, 152, 0.3);
+            border: 2px solid #3b5998;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 10px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="presentation-container">
+        <div class="slide-counter">
+            <span id="current-slide">1</span> / <span id="total-slides">10</span>
+        </div>
+
+        <!-- Slide 1: Title -->
+        <div class="slide active title-slide">
+            <div class="content">
+                <h1>Networking & DNS</h1>
+                <div class="subtitle">From Local Networks to Global Internet</div>
+                <div class="highlight-box" style="margin-top: 40px;">
+                    <h3>Today's Learning Journey:</h3>
+                    <ul style="text-align: left; font-size: 1.2em;">
+                        <li>URL (Uniform Resource Locator)</li>
+                        <li>FQDN (Fully Qualified Domain Name)</li>
+                        <li>DNS (Domain Name System)</li>
+                        <li>Website Hosting & Networking</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 2: Starting Examples -->
+        <div class="slide">
+            <div class="content">
+                <h2>Let's Start with Examples</h2>
+                <div class="url-breakdown">
+                    <div class="url-part protocol">https://</div>
+                    <div class="url-part subdomain">www.</div>
+                    <div class="url-part domain">facebook</div>
+                    <div class="url-part tld">.com</div>
+                </div>
+                <div class="url-breakdown">
+                    <div class="url-part protocol">https://</div>
+                    <div class="url-part subdomain">abc.</div>
+                    <div class="url-part domain">google</div>
+                    <div class="url-part tld">.com</div>
+                </div>
+                <div class="highlight-box">
+                    <h3>What happens when you type these URLs?</h3>
+                    <ul>
+                        <li>Your device needs to find where Facebook's servers are located</li>
+                        <li>It needs to translate the human-readable name to an IP address</li>
+                        <li>This involves multiple networks and systems working together</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 3: Basic Networking -->
+        <div class="slide">
+            <div class="content">
+                <h2>Basic Networking Concepts</h2>
+                <h3>Local Network - Peer-to-Peer Connection</h3>
+                <div class="network-diagram">
+                    <div class="network-row">
+                        <div class="device">Robot</div>
+                        <div class="connection-line"></div>
+                        <div class="device">Phone</div>
+                    </div>
+                    <p style="margin-top: 10px;"><strong>Connection:</strong> Bluetooth (Direct Communication)</p>
+                </div>
+                
+                <h3>Single Local Network</h3>
+                <div class="network-diagram">
+                    <div class="router">WiFi Router</div>
+                    <div class="vertical-line"></div>
+                    <div class="network-row">
+                        <div class="device">Laptop1</div>
+                        <div class="device">Laptop2</div>
+                        <div class="device">Laptop3</div>
+                        <div class="device">Laptop4</div>
+                    </div>
+                    <p style="margin-top: 15px;"><strong>Private IP Range:</strong> 192.168.1.x</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 4: Multiple Local Networks -->
+        <div class="slide">
+            <div class="content">
+                <h2>Multiple Local Networks</h2>
+                <div class="two-column">
+                    <div class="local-network">
+                        <h3>Local Network 1</h3>
+                        <div class="router">WiFi Router</div>
+                        <div class="network-row" style="margin-top: 10px;">
+                            <div class="device">Laptop1</div>
+                            <div class="device">Laptop2</div>
+                        </div>
+                        <div class="network-row">
+                            <div class="device">Laptop3</div>
+                            <div class="device">Laptop4</div>
+                        </div>
+                    </div>
+                    <div class="local-network">
+                        <h3>Local Network 2</h3>
+                        <div class="router">WiFi Router</div>
+                        <div class="network-row" style="margin-top: 10px;">
+                            <div class="device">Laptop1</div>
+                            <div class="device">Laptop2</div>
+                        </div>
+                        <div class="network-row">
+                            <div class="device">Laptop3</div>
+                            <div class="device">Laptop4</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="highlight-box" style="text-align: center;">
+                    <h3>Question: How do these networks communicate with each other?</h3>
+                    <p>We need a <strong>Trusted Internet Regulator</strong> and framework!</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 5: Internet Connection -->
+        <div class="slide">
+            <div class="content">
+                <h2>How Local Networks Connect to Internet</h2>
+                <div class="network-diagram">
+                    <div class="local-network">
+                        <div class="router">Your WiFi Router</div>
+                        <div class="network-row" style="margin-top: 10px;">
+                            <div class="device">Laptop1</div>
+                            <div class="device">Laptop2</div>
+                            <div class="device">Laptop3</div>
+                            <div class="device">Laptop4</div>
+                        </div>
+                    </div>
+                    <div class="vertical-line"></div>
+                    <div class="isp">Internet Service Provider (ISP)<br>Airtel / Jio / BSNL</div>
+                    <div class="vertical-line"></div>
+                    <div class="internet-cloud">Internet Regulatory Authority<br>(Trusted Framework)</div>
+                    <div class="vertical-line"></div>
+                    <div class="isp">Facebook's ISP</div>
+                    <div class="vertical-line"></div>
+                    <div class="facebook-network">
+                        <h3>Facebook's Network</h3>
+                        <div class="router">Facebook Router (Public + Security)</div>
+                        <div class="network-row" style="margin-top: 10px;">
+                            <div class="device">Server1</div>
+                            <div class="device">Server2</div>
+                            <div class="device">Server3</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 6: IP Address Types -->
+        <div class="slide">
+            <div class="content">
+                <h2>IP Address Types</h2>
+                <div class="two-column">
+                    <div class="highlight-box">
+                        <h3>Private IP Addresses</h3>
+                        <ul>
+                            <li><strong>Range:</strong> 192.168.x.x</li>
+                            <li><strong>Range:</strong> 10.x.x.x</li>
+                            <li><strong>Range:</strong> 172.16.x.x - 172.31.x.x</li>
+                            <li><strong>Usage:</strong> Internal network only</li>
+                            <li><strong>Not routable:</strong> Cannot access internet directly</li>
+                            <li><strong>Example:</strong> Your laptop in home network</li>
+                        </ul>
+                    </div>
+                    <div class="highlight-box">
+                        <h3>Public IP Addresses</h3>
+                        <ul>
+                            <li><strong>Unique globally:</strong> No duplicates worldwide</li>
+                            <li><strong>Routable:</strong> Can communicate over internet</li>
+                            <li><strong>Assigned by ISPs:</strong> Internet Service Providers</li>
+                            <li><strong>Example:</strong> 101.23.7.8 (Facebook server)</li>
+                            <li><strong>Cost:</strong> Usually paid/leased</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="highlight-box" style="text-align: center;">
+                    <h3>Key Point: Your router has both!</h3>
+                    <p>Private IP (192.168.1.1) for internal network + Public IP (from ISP) for internet</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 7: DNS Introduction -->
+        <div class="slide">
+            <div class="content">
+                <h2>The Problem: Remembering IP Addresses</h2>
+                <div class="highlight-box">
+                    <h3>Without DNS, you'd need to remember:</h3>
+                    <div class="code-output">https://101.23.7.8        (Facebook)
+https://142.250.191.14   (Google)
+https://157.240.11.35    (Instagram)
+https://31.13.79.246     (WhatsApp)</div>
+                    <h3>With DNS, you can use:</h3>
+                    <div class="code-output">https://www.facebook.com
+https://www.google.com
+https://www.instagram.com
+https://web.whatsapp.com</div>
+                </div>
+                <div class="highlight-box" style="text-align: center;">
+                    <h3>DNS (Domain Name System)</h3>
+                    <p>The "Phone Book" of the Internet<br>
+                    Translates human-readable names → IP addresses</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 8: DNS Resolution Process -->
+        <div class="slide">
+            <div class="content">
+                <h2>DNS Resolution Process</h2>
+                <h3>When you type: www.facebook.com</h3>
+                <div class="dns-flow">
+                    <div class="dns-step">
+                        <div class="step-number">1</div>
+                        <div class="dns-step-content">
+                            <strong>Local Cache Check</strong><br>
+                            Browser checks: "Do I already know this IP?"<br>
+                            <em>Result: Not found (or expired TTL: 10s)</em>
+                        </div>
+                    </div>
+                    <div class="dns-step">
+                        <div class="step-number">2</div>
+                        <div class="dns-step-content">
+                            <strong>OS DNS Server</strong><br>
+                            Operating System checks its DNS cache<br>
+                            <em>Result: Not found (TTL expired)</em>
+                        </div>
+                    </div>
+                    <div class="dns-step">
+                        <div class="step-number">3</div>
+                        <div class="dns-step-content">
+                            <strong>Root DNS Server</strong><br>
+                            "I don't know facebook.com, but ask .com servers"<br>
+                            <em>Returns: .com TLD server addresses</em>
+                        </div>
+                    </div>
+                    <div class="dns-step">
+                        <div class="step-number">4</div>
+                        <div class="dns-step-content">
+                            <strong>Top Level Domain (.com)</strong><br>
+                            "I don't handle facebook.com directly, ask Facebook's DNS"<br>
+                            <em>Returns: Facebook's authoritative DNS server</em>
+                        </div>
+                    </div>
+                    <div class="dns-step">
+                        <div class="step-number">5</div>
+                        <div class="dns-step-content">
+                            <strong>Authoritative DNS (facebook.com)</strong><br>
+                            Facebook's DNS (e.g., Hostinger) responds<br>
+                            <em>Returns: www.facebook.com → 101.23.7.8 (A record)</em>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 9: FQDN Breakdown -->
+        <div class="slide">
+            <div class="content">
+                <h2>FQDN - Fully Qualified Domain Name</h2>
+                <div class="url-breakdown">
+                    <div class="url-part subdomain">www</div>
+                    <div class="url-part domain">facebook</div>
+                    <div class="url-part tld">.com</div>
+                    <div class="url-part root">.</div>
+                </div>
+                <div class="two-column">
+                    <div class="highlight-box">
+                        <h3>Component Breakdown:</h3>
+                        <ul>
+                            <li><strong>www</strong> → Host/Device (web server)</li>
+                            <li><strong>facebook</strong> → Domain Name (company)</li>
+                            <li><strong>.com</strong> → Top Level Domain (commercial)</li>
+                            <li><strong>.</strong> → Root Directory (hidden)</li>
+                        </ul>
+                    </div>
+                    <div class="highlight-box">
+                        <h3>DNS Record Types:</h3>
+                        <ul>
+                            <li><strong>A Record:</strong> IPv4 address mapping</li>
+                            <li><strong>AAAA Record:</strong> IPv6 address mapping</li>
+                            <li><strong>CNAME Record:</strong> Alias/canonical name</li>
+                            <li><strong>MX Record:</strong> Mail exchange</li>
+                            <li><strong>NS Record:</strong> Name server</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="code-output">Example DNS Record:
+www.facebook.com.    A    101.23.7.8    (IPv4 address)</div>
+            </div>
+        </div>
+
+        <!-- Slide 10: nslookup Practical Example -->
+        <div class="slide">
+            <div class="content">
+                <h2>Practical Example: nslookup</h2>
+                <h3>Command: nslookup www.facebook.com</h3>
+                <div class="code-output">Server:  Unknown
+Address:  10.245.242.31
+
+Non-authoritative answer:
+Name:    star-mini.c10r.facebook.com
+Addresses:  2a03:2880:f16b:183:face:b00c:0:25de
+          31.13.64.35
+Aliases:  www.facebook.com</div>
+                <div class="two-column">
+                    <div class="highlight-box">
+                        <h3>Understanding the Output:</h3>
+                        <ul>
+                            <li><strong>Server:</strong> Your DNS resolver</li>
+                            <li><strong>Address:</strong> DNS server IP (10.245.242.31)</li>
+                            <li><strong>Non-authoritative:</strong> Cached response</li>
+                            <li><strong>Name:</strong> Actual server name</li>
+                            <li><strong>Addresses:</strong> IPv6 & IPv4</li>
+                            <li><strong>Aliases:</strong> www.facebook.com is an alias</li>
+                        </ul>
+                    </div>
+                    <div class="highlight-box">
+                        <h3>Key Insights:</h3>
+                        <ul>
+                            <li>Facebook uses multiple IP addresses</li>
+                            <li>Load balancing across servers</li>
+                            <li>IPv6 support (future internet)</li>
+                            <li>CDN (Content Delivery Network)</li>
+                            <li>Geographic distribution</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="highlight-box" style="text-align: center;">
+                    <h3>Try it yourself!</h3>
+                    <p>Open Command Prompt/Terminal and run: <strong>nslookup www.google.com</strong></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="navigation">
+            <button class="nav-btn" onclick="previousSlide()">← Previous</button>
+            <button class="nav-btn" onclick="nextSlide()">Next →</button>
+        </div>
+    </div>
+
+    <script>
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.slide');
+        const totalSlides = slides.length;
+        
+        document.getElementById('total-slides').textContent = totalSlides;
+        
+        function showSlide(n) {
+            slides[currentSlide].classList.remove('active');
+            currentSlide = (n + totalSlides) % totalSlides;
+            slides[currentSlide].classList.add('active');
+            document.getElementById('current-slide').textContent = currentSlide + 1;
+        }
+        
+        function nextSlide() {
+            showSlide(currentSlide + 1);
+        }
+        
+        function previousSlide() {
+            showSlide(currentSlide - 1);
+        }
+        
+        // Keyboard navigation
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowRight' || e.key === ' ') {
+                nextSlide();
+            } else if (e.key === 'ArrowLeft') {
+                previousSlide();
+            }
+        });
+        
+        // Click to advance (except on buttons)
+        document.addEventListener('click', function(e) {
+            if (!e.target.classList.contains('nav-btn') && !e.target.closest('.nav-btn')) {
+                nextSlide();
+            }
+        });
+        
+        // Add hover effects to network devices
+        document.querySelectorAll('.device, .router, .isp').forEach(element => {
+            element.addEventListener('mouseenter', function() {
+                this.style.transform = 'scale(1.05) rotateZ(2deg)';
+            });
+            element.addEventListener('mouseleave', function() {
+                this.style.transform = 'scale(1) rotateZ(0deg)';
+            });
+        });
+        
+        // Animate DNS steps on slide load
+        function animateDNSSteps() {
+            const steps = document.querySelectorAll('.dns-step');
+            steps.forEach((step, index) => {
+                setTimeout(() => {
+                    step.style.animation = `slideIn 0.5s ease-out ${index * 0.2}s forwards`;
+                }, index * 200);
+            });
+        }
+        
+        // Call animation when DNS slide is active
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.target.classList.contains('active') && 
+                    mutation.target.querySelector('.dns-flow')) {
+                    animateDNSSteps();
+                }
+            });
+        });
+        
+        slides.forEach(slide => {
+            observer.observe(slide, { attributes: true, attributeFilter: ['class'] });
+        });
+    </script>
+</body>
+</html>
